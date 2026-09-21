@@ -82,7 +82,7 @@ How to read them:
 
 - **Every arrow is labeled** with what is sent.
 - **Workers** (`relay`, `integrations worker`, `analytics worker`) are extra containers built from the same repo as their service. They run background loops.
-- **Which service uses which database** is in the table below.
+- **Which service uses which database** is in the table below, and in the [Data map](data-map.md).
 
 ## The services
 
@@ -128,7 +128,7 @@ There are four ways:
 
 **Service-to-service:** all services share one `INTERNAL_API_KEY`. The caller sends it as `X-Service-Key`. The receiver compares it with its own copy.
 
-The full walk is in [Login and refresh](flows/login-and-refresh.md). A separate auth and security page is coming.
+More detail: [Auth and security](auth-and-security.md). The step-by-step walk is in [Login and refresh](flows/login-and-refresh.md).
 
 ## Honest notes
 

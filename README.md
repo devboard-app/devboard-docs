@@ -32,6 +32,8 @@ The web app appears in diagrams as "the client". It has no page of its own.
 | Page | What you learn |
 |---|---|
 | [System overview](architecture/overview.md) | All services, the diagram, how they talk, the outbox, auth in 30 seconds |
+| [Auth and security](architecture/auth-and-security.md) | User tokens, the service key, roles, secrets, security gaps |
+| [Data map](architecture/data-map.md) | What is stored where (Postgres, MongoDB, Redis, MinIO), and why |
 | [devboard-auth](services/auth/index.md) | Sign-up, login, tokens, rate limits |
 | [devboard-core](services/core/index.md) | User profiles, roles, status |
 | [devboard-email](services/email/index.md) | Sending mail from templates |
@@ -60,8 +62,6 @@ Each flow starts with a sequence diagram, then numbered steps, then what happens
 
 ## Coming next
 
-- Auth and security (user tokens and service keys, in one place)
-- Data map (what is stored where, and why)
 - Decisions and known limitations (the gaps from every page, in one list)
 
 ## Sources
