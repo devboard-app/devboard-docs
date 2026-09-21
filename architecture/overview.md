@@ -3,6 +3,8 @@
 > **In one minute:** DevBoard has 7 backend services and 4 shared infrastructure parts.
 > Users log in at `devboard-auth` and get a token. Every other service checks that token.
 > Services call each other over HTTP with a shared key. Events (like "ticket assigned") travel through one Redis stream.
+>
+> A word you do not know? See the [Glossary](glossary.md).
 
 ## The picture
 
