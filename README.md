@@ -36,6 +36,7 @@ The web app appears in diagrams as "the client". It has no page of its own.
 | [Data map](architecture/data-map.md) | What is stored where (Postgres, MongoDB, Redis, MinIO), and why |
 | [Decisions](architecture/decisions.md) | Why the system looks this way: choice, reason, cost |
 | [Glossary](architecture/glossary.md) | Plain meanings for the hard words (JWT, outbox, presigned URL, and more) |
+| [Known limitations](architecture/known-limitations.md) | An index of what is not right yet, grouped by theme, with links to the details |
 | [devboard-auth](services/auth/index.md) | Sign-up, login, tokens, rate limits |
 | [devboard-core](services/core/index.md) | User profiles, roles, status |
 | [devboard-email](services/email/index.md) | Sending mail from templates |
@@ -61,10 +62,6 @@ Each flow starts with a sequence diagram, then numbered steps, then what happens
 | [GitHub webhook](architecture/flows/inbound-webhook.md) | Linking commits to tickets |
 | [Analytics pipeline](architecture/flows/analytics-pipeline.md) | Event in, stored, report out |
 | [Deletes and cleanup](architecture/flows/deletes-and-cleanup.md) | What is deleted, what stays behind |
-
-## Coming next
-
-- Known limitations (the gaps from every page, in one list)
 
 ## Sources
 

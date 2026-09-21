@@ -151,5 +151,6 @@ Or use one command: `docker compose -f devboard-infra/stack.yml up -d --build`. 
 - One repo in detail: start with [devboard-work](../services/work/index.md), the biggest service.
 - One journey end to end: [Team, project and ticket](flows/team-project-ticket.md) or [File upload](flows/file-upload.md).
 - All flows: [Flows](flows/README.md).
+- What is not right yet: [Known limitations](known-limitations.md).
 
 Next: open [Team, project and ticket](flows/team-project-ticket.md) and match each arrow in its picture to an arrow in pictures 2 to 4 above.
