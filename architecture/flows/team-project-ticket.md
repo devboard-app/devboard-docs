@@ -55,7 +55,10 @@ Every request in this flow first passes the checks from [Login and refresh](logi
    - Only a project lead can assign a ticket to someone else.
    - The assignee must be a project member.
    - Work saves the ticket and the events in one transaction: `ticket.created`, and `ticket.assigned` if there is an assignee.
-6. **Change a ticket.** `PATCH .../tickets/<id>/`. Work sends **one event per changed field**: `ticket.updated` for title, description, priority, type, due date and story points (each with the field, old value and new value), `ticket.assigned`, `ticket.unassigned`, `ticket.status_changed` and epic links.
+6. **Change a ticket.** `PATCH .../tickets/<id>/`. Work sends **one event per changed field**:
+   - `ticket.updated` for title, description, priority, type, due date and story points. It has the field, the old value and the new value.
+   - `ticket.assigned`, `ticket.unassigned` and `ticket.status_changed`.
+   - Epic links.
 7. **Plan a sprint.** Create a sprint, add tickets, start it.
    - A project can have **one** active sprint.
    - A sprint needs **at least one ticket** to start.

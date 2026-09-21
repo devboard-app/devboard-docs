@@ -11,14 +11,21 @@
 | **Active / inactive** | A user's status in core. An inactive user is blocked in core and work. |
 | **Bearer** | The way to send a token: the header `Authorization: Bearer <token>`. |
 | **bcrypt** | The way auth scrambles passwords before saving them. |
+| **Claim** | One fact inside a JWT. For example, `sub` is the user id. |
 | **Constant-time compare** | Comparing two secrets in the same time, however alike they are. `hmac.compare_digest`. |
+| **Credentials** | Secrets used to log in: a password, a key or an access key. |
+| **Deactivate** | Set a user's status to `inactive`. Auth also revokes their refresh tokens. |
+| **Expiry** | The time when a token stops working. |
 | **Hash** | A one-way scramble. It cannot be turned back. Tokens and passwords are saved as hashes. |
 | **HMAC** | A signature made from the data plus a shared secret. GitHub uses it to sign webhooks. |
 | **HS256** | How the JWT is signed: with one shared secret (`JWT_SECRET`). |
 | **JWT** | A signed pass that says who the user is. A service checks the signature itself. See [Auth and security](auth-and-security.md). |
+| **Membership** | A user's place in a team or a project, with a role. |
 | **Rate limit** | A maximum number of tries in a time window. Auth uses it on login and sign-up. |
 | **Refresh token** | A random string that lives 7 days. It is swapped for a new pair, and works once. |
 | **Service key** | The shared secret in the header `X-Service-Key`. It proves the caller is a DevBoard service. |
+| **Session** | A record of a logged-in user, kept on the server. The browser only holds a cookie. The web app keeps tokens in it. |
+| **SHA-256** | The hash method used for refresh, verification and reset tokens. |
 | **Signature** | A stamp that proves a token or a webhook was not changed. |
 | **Verified** | The user clicked the link in the "verify your email" mail. |
 
@@ -35,11 +42,13 @@
 | **Outbox** | A table in work. A change and its event are saved together, and the event is sent later. See [Events and notifications](flows/events-and-notifications.md). |
 | **Payload** | The data inside an event or a request. |
 | **Pending** | Read by a consumer but not acked yet. |
+| **Poll** | Check for new work every few seconds. The relay polls the outbox every 2 seconds. |
 | **Reclaim** | Taking back pending messages that sat idle too long. |
 | **Recipient** | The user who gets a notification (`recipient_id`). |
 | **Redis stream** | A list of events in Redis. The DevBoard stream is `devboard:events`. |
 | **Relay** | The container that reads the outbox and sends each event. |
 | **Replay** | Reading old events again. Analytics uses it to rebuild the log. |
+| **Retry / attempt** | Trying again after a failure. Each try is one attempt. |
 | **Webhook** | A URL that a system calls when something happens. GitHub calls integrations. Integrations calls Slack. |
 | **Worker** | A container that runs a background loop. It does not answer HTTP. |
 | **`XADD`** | The Redis command that adds an event to a stream. |
@@ -63,15 +72,19 @@
 | Word | Meaning |
 |---|---|
 | **AOF** | Redis saves every write to disk. Started with `--appendonly yes`. |
+| **Cache** | A saved answer, kept for a short time so it need not be made again. |
 | **Cascade** | Deleting a parent row also deletes its children. |
 | **Foreign key** | A database rule that links two tables. There are none across services. |
 | **Hard delete / soft delete** | Hard: the row is gone. Soft: the row stays with a "deleted" flag. Work uses hard deletes. |
 | **Index** | An extra structure that makes a query faster. |
+| **JSON** | A text format for data, like `{"name": "Ana"}`. |
 | **Migration** | A script that changes a database's tables. Alembic or Django runs it. |
 | **MongoDB** | The document database. Analytics keeps its activity log there. |
 | **PostgreSQL** | The main database. One server, five databases. See [Data map](data-map.md). |
 | **Redis** | A fast store. Here it holds the event stream, rate limits and web sessions. |
 | **Transaction** | Many database changes that all succeed or all fail together. |
+| **Unique key** | A database rule: no two rows may have the same value. |
+| **UTF-8** | The usual way to store text as bytes. |
 | **UUID** | A long random id, like `3f2b8c1e-...`. |
 | **Volume** | Docker storage that keeps data after a container restarts. |
 
@@ -83,11 +96,28 @@
 | **Container** | One running program, packed with what it needs. |
 | **Docker Compose** | The tool that starts many containers from a file. |
 | **Endpoint / route** | One URL a service answers, like `POST /auth/login/`. |
+| **`.env`** | A file with one service's settings and secrets. Each repo has one. Only names appear in these docs. |
 | **Health check** | A route (`/health`) that says the service is up. |
 | **Internal route** | A route for other services only. It needs the service key. |
 | **Reverse proxy** | A server in front of the services. It decides which routes the public can reach. |
 | **SMTP** | The protocol for sending email. |
+| **STARTTLS** | A step that makes an SMTP connection encrypted. |
 | **`stack.yml`** | The one file that starts every service. In `devboard-infra`. |
+
+## Tools and libraries
+
+| Word | Meaning |
+|---|---|
+| **Alembic** | The tool that runs migrations in auth, attachments and integrations. Django services use Django's own. |
+| **Async** | Code that does not wait for one slow step. It can serve other requests meanwhile. |
+| **Django** | A Python web framework. Core and work use it, with DRF. |
+| **DRF** | Django REST Framework. It adds API routes to Django. |
+| **FastAPI** | A Python web framework. Auth, email, analytics and attachments use it. |
+| **Flask** | A small Python web framework. Integrations uses it. |
+| **gunicorn** | The server that runs the Flask app in production. |
+| **Jinja2** | The template tool that builds the HTML of each email. |
+| **Pillow** | A Python image library. Attachments uses it to check that an image is real. |
+| **SQLAlchemy** | A Python library that talks to the database. Used by auth, attachments and integrations. |
 
 ## Work terms
 

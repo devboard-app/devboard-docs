@@ -89,7 +89,7 @@ Each loop: reclaim messages idle for 60 seconds, then read new ones (up to 10, w
 
 ## Known gaps
 
-- ⚠️ **Email notifications are not built.** `email_notifications` is stored, but nothing reads it. `EMAIL_SERVICE_URL` and `CORE_SERVICE_URL` are required but unused. Core also has no route that returns a user's email from a user id, so the worker could not look up the address yet.
+- ⚠️ **Email notifications are not built.** `email_notifications` is stored, but nothing reads it. `EMAIL_SERVICE_URL` and `CORE_SERVICE_URL` are required but unused. Core also has no route that returns a user's email from a user id. So the worker could not look up the address yet.
 - ⚠️ **A failed publish loses the commit link.** The row in `linked_commits` is saved before the publish. If the publish fails, a GitHub redelivery is skipped as a duplicate.
 - ⚠️ **One worker only.** The consumer name is fixed (`devboard-integrations-1`). Two workers would break retry counting.
 - ⚠️ **A typo in an event name fails silently.** Unknown events are acked and dropped.

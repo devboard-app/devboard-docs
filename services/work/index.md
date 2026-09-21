@@ -81,7 +81,14 @@ Work never writes to Redis inside a request. It uses an **outbox**:
 3. It sends each row: to the Redis stream `devboard:events`, or to devboard-email.
 4. On success it sets `delivered_at`. On failure it adds 1 to `attempts`. After **5 attempts** the row is skipped for good.
 
-Event groups on the stream: `ticket.*` (created, updated, assigned, unassigned, status_changed, deleted, epic and sprint links), `label.applied` and `label.removed`, `sprint.started` and `sprint.completed`, `comment.*` (created, updated, deleted, mentioned). An event that needs a notification carries a `recipient_id`.
+Event groups on the stream:
+
+- `ticket.*`: created, updated, assigned, unassigned, status_changed, deleted, epic and sprint links.
+- `label.applied` and `label.removed`.
+- `sprint.started` and `sprint.completed`.
+- `comment.*`: created, updated, deleted, mentioned.
+
+An event that needs a notification carries a `recipient_id`.
 
 ## If something is down
 

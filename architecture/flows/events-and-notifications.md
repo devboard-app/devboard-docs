@@ -61,7 +61,14 @@ sequenceDiagram
 2. Every loop, the reader takes back messages that were idle too long (60 seconds in integrations, 30 in analytics).
 3. After **3 deliveries** the message goes to the `failed_events` table or collection, with the raw data, and is acked.
 
-**Events that exist today:** `ticket.created`, `ticket.updated`, `ticket.assigned`, `ticket.unassigned`, `ticket.status_changed`, `ticket.deleted`, `ticket.epic_linked`, `ticket.epic_unlinked`, `ticket.sprint_added`, `ticket.sprint_removed`, `label.applied`, `label.removed`, `sprint.started`, `sprint.completed`, `comment.created`, `comment.updated`, `comment.deleted`, `comment.mentioned` (all from work) and `ticket.commit_linked` (from integrations, see [GitHub webhook](inbound-webhook.md)).
+**Events that exist today:**
+
+- Tickets (work): `ticket.created`, `ticket.updated`, `ticket.assigned`, `ticket.unassigned`, `ticket.status_changed`, `ticket.deleted`
+- Ticket links (work): `ticket.epic_linked`, `ticket.epic_unlinked`, `ticket.sprint_added`, `ticket.sprint_removed`
+- Labels (work): `label.applied`, `label.removed`
+- Sprints (work): `sprint.started`, `sprint.completed`
+- Comments (work): `comment.created`, `comment.updated`, `comment.deleted`, `comment.mentioned`
+- Commits (integrations): `ticket.commit_linked`. See [GitHub webhook](inbound-webhook.md).
 
 ## Why an outbox
 

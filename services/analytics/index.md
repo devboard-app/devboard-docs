@@ -91,7 +91,7 @@ Reports rebuild the state of every ticket by **replaying the event log** in memo
 | Down | What happens |
 |---|---|
 | **work** | Every report route returns `503`, because the role check fails. |
-| **MongoDB** | Reports fail. The worker keeps failing, and the messages stay pending. If it lasts long enough for a message to be delivered more than 3 times, that message goes to `failed_events` when MongoDB is back. The raw data is kept there. |
+| **MongoDB** | Reports fail. The worker keeps failing and the messages stay pending. After 3 deliveries, a message goes to `failed_events` when MongoDB is back. Its raw data is kept. |
 | **Redis** | The worker cannot read. Reports still work, but the log stops growing. |
 | **The worker is stopped** | Events wait in the stream. They are saved when the worker starts again. |
 

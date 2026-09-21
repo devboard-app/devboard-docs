@@ -48,7 +48,7 @@ sequenceDiagram
    - The ticket's assignee gets a `comment.created` event with a `recipient_id`. But **not** if the assignee is the author, and **not** if they are already mentioned. They get one notification, not two.
 5. **Work saves everything in one transaction:** the comment, and one outbox row per event.
 6. **The relay sends the events** to the Redis stream `devboard:events` (about every 2 seconds).
-7. **The integrations worker reads them** and saves one row per recipient in `notifications`: type `mention` ("You were mentioned in a comment on ticket DEV-12.") or type `comment` ("New comment on ticket DEV-12."). Each has a link to the ticket.
+7. **The integrations worker reads them.** It saves one row per recipient in `notifications`. The type is `mention` ("You were mentioned in a comment on ticket DEV-12.") or `comment` ("New comment on ticket DEV-12."). Each row has a link to the ticket.
 8. **The user opens the inbox.** `GET /api/notifications/` returns their notifications. `limit` defaults to 20 and is at most 100. They can mark one or all as read, or delete one.
 
 Analytics also reads `comment.created` and stores it in the activity log. It **ignores** `comment.mentioned`, because that is a notification and not activity.

@@ -45,7 +45,15 @@ The web app appears in diagrams as "the client". It has no page of its own.
 | [devboard-integrations](services/integrations/index.md) | Notifications, Slack/Discord, GitHub commit links |
 | [devboard-analytics](services/analytics/index.md) | Activity log and reports |
 | [devboard-infra](services/infra/index.md) | PostgreSQL, Redis, MongoDB, MinIO, start scripts |
-Every service page has the same parts: at a glance, a small diagram, how it checks callers, what it does, what happens when something is down, known gaps, and links to the key code.
+Every service page has the same 7 parts, in this order:
+
+1. At a glance
+2. A small diagram
+3. How it checks callers
+4. What it does
+5. What happens when something is down
+6. Known gaps
+7. Links to the key code
 
 ### Flows
 

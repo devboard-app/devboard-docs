@@ -41,7 +41,10 @@ sequenceDiagram
 **1. Ask for an upload**
 
 1. The browser calls the web app. The web app calls `POST /attachments/request-upload/` with the user's token.
-2. Attachments checks the **claims**: the content type is on the allow list (`image/png`, `image/jpeg`, `image/webp`, `image/gif`, `application/pdf`, `text/plain`), the declared size is under `MAX_FILE_SIZE_MB` (5 by default), and the context has fewer than `MAX_ATTACHMENTS_PER_CONTEXT` files (5 by default).
+2. Attachments checks the **claims**:
+   - The content type is on the allow list: `image/png`, `image/jpeg`, `image/webp`, `image/gif`, `application/pdf`, `text/plain`.
+   - The declared size is under `MAX_FILE_SIZE_MB` (5 by default).
+   - The context has fewer than `MAX_ATTACHMENTS_PER_CONTEXT` files (5 by default).
 3. It saves a row with status `pending` and the storage key `{id}/{filename}`, and signs a temporary **PUT** link. The link is signed for the **public** MinIO address, because the browser must be able to reach it.
 
 **2. Upload**
@@ -70,7 +73,7 @@ The content check looks inside the file: images must open in Pillow, PDFs must s
 
 **5. Read it later**
 
-9. When a comment is read, work sends the ids to `POST /internal/attachments/batch/` (up to 100 at once, one call for a whole page of comments). Attachments returns a **fresh download link** for each `stored` file. Links last 900 seconds by default, so they are made when needed and never saved.
+9. When a comment is read, work sends the ids to `POST /internal/attachments/batch/`. It sends up to 100 at once, so a whole page of comments needs one call. Attachments returns a **fresh download link** for each `stored` file. Links last 900 seconds by default. They are made when needed and never saved.
 10. The browser downloads the file straight from MinIO with that link.
 
 ## If a step fails
