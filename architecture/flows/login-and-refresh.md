@@ -54,8 +54,8 @@ sequenceDiagram
 
 | Service | Extra check |
 |---|---|
-| core | Loads the profile from its database. Blocks inactive users. Sets `last_active`. |
-| work | Asks core for the user status on every request. Then checks team role and project role. |
+| core | Loads the profile from its database. Blocks inactive users. Sets `last_active`, but only when the stored value is more than 5 minutes old. |
+| work | Asks core for the user status, cached in Redis for 60 seconds so it isn't a call to core on every request. Then checks team role and project role. |
 | integrations, analytics, attachments | Signature only. |
 
 **Refresh**
@@ -84,7 +84,8 @@ What the user can still do afterwards:
 
 | Where | Result |
 |---|---|
-| core and work | Blocked at once. Both check the status on every request. |
+| core | Blocked at once — checks its own database on every request. |
+| work | Blocked within 60 seconds — the status check is cached that long. |
 | Refresh | Blocked at once. |
 | integrations, analytics, attachments | Still allowed until the access token expires, **at most 5 minutes**. |
 
@@ -102,7 +103,7 @@ What the user can still do afterwards:
 
 - **A role change is not seen at once.** The role is inside the access token, so an issued token keeps the old role for up to 5 minutes.
 - **Some services check only the signature**, so a deactivated user has up to 5 minutes there.
-- **IP rate limits may be shared.** See the gap in [Sign-up](sign-up-and-verify.md). Login is limited per IP and per email. If auth sees one IP for everyone, 5 failed logins from any user can lock everyone out for 15 minutes.
+- **IP rate limits may still be shared in production.** See the gap in [Sign-up](sign-up-and-verify.md) — local dev is fixed, production has no gateway yet to set `X-Forwarded-For`. Login is limited per IP and per email; if auth sees one IP for everyone, 5 failed logins from any user can lock everyone out for 15 minutes.
 
 ## Key code
 

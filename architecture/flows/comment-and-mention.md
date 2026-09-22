@@ -71,7 +71,6 @@ Analytics also reads `comment.created` and stores it in the activity log. It **i
 ## ⚠️ Known gaps
 
 - **A core outage silently drops mentions.** The comment looks fine to the author.
-- **Assignee notifications are not filtered for everyone.** For comments, work skips the author and the already-mentioned. For assignment and status changes it does not skip the actor. See [Team, project and ticket](team-project-ticket.md).
 
 ## Key code
 

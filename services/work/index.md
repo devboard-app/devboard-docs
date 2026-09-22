@@ -45,7 +45,7 @@ flowchart LR
 **User requests** (`Authorization: Bearer <jwt>`):
 
 1. Check the JWT signature with `JWT_SECRET`.
-2. Ask **core** for the user status (`/api/users/internal/<id>/status/`). Only `active` passes. This happens on **every request**.
+2. Ask **core** for the user status (`/api/users/internal/<id>/status/`). Only `active` passes. The result is cached in Redis for 60 seconds, so this isn't a call to core on every single request — a deactivated user is blocked within 60 seconds instead of immediately.
 3. Check the **team role**, then the **project role**.
 
 | Level | Roles |
@@ -68,7 +68,7 @@ Being on a team does **not** give access to its projects. Project membership is 
 | Labels | Tags on tickets | Apply and remove per ticket. |
 | Comments | Text on a ticket | Files and `@mentions`, see below. |
 
-**Comment files.** A comment stores only file ids. When it is read, work asks attachments for download links (one call for the whole page). When a comment is **created**, work asks attachments to check that the caller owns every id.
+**Comment files.** A comment stores only file ids. When it is read, work asks attachments for download links (one call for the whole page). When a comment is **created**, work asks attachments to check that the caller owns every id. When a comment is **deleted**, its file ids go out with the `comment.deleted` event, so attachments can delete the files too instead of leaving them orphaned.
 
 **Comment mentions.** `@username` in a comment is looked up in core and saved as user ids. Unknown names, self-mentions and users outside the project are dropped without an error. Editing a comment rebuilds the list. Only **new** mentions send a notification. Editing cannot change the files.
 
@@ -79,7 +79,8 @@ Work never writes to Redis inside a request. It uses an **outbox**:
 1. The change and its event are saved in **one database transaction** (`write_with_outbox`). The event is a row in `outbox_events`.
 2. The relay container runs `python manage.py drain_outbox`. Every 2 seconds it reads unsent rows, oldest first, Redis rows before email rows.
 3. It sends each row: to the Redis stream `devboard:events`, or to devboard-email.
-4. On success it sets `delivered_at`. On failure it adds 1 to `attempts`. After **5 attempts** the row is skipped for good.
+4. On success it sets `delivered_at`. On failure it retries with a growing delay (4s, doubling up to a 300s cap) instead of failing fast. After **150 attempts** — roughly half a day — the row is left as failed and needs a manual retry.
+5. Every Redis event carries the outbox row's own id (`outbox_id`), so if the relay crashes after sending but before marking a row delivered, the redelivery can be told apart from a genuinely new event by whoever reads it (analytics dedupes on this).
 
 Event groups on the stream:
 
@@ -94,20 +95,13 @@ An event that needs a notification carries a `recipient_id`.
 
 | Down | What happens |
 |---|---|
-| **core** | **Every user request fails** with `503` (the status check). Adding a member by email also fails. |
-| **Redis** | Requests keep working. Events wait in the outbox. But see the gap below about 5 attempts. |
+| **core** | Requests within 60 seconds of the last successful check still pass (cached). After that, requests fail with `503` (the status check). Adding a member by email also fails. |
+| **Redis** | Requests keep working. Events wait in the outbox and retry with backoff for up to ~150 attempts before being left as failed. |
 | **email** | The team member is still added. The invitation row is retried like any other. |
 | **attachments**, reading comments | Comments load with an empty `attachments` list. |
 | **attachments**, creating a comment with files | `503` after 3 tries (about 5 seconds max). |
 | **core**, during a mention lookup | The comment is saved. Mentions are skipped. |
 | **PostgreSQL** | Everything fails. |
-
-## Known gaps
-
-- ⚠️ **The outbox gives up fast.** Retries are about 2 seconds apart and stop after 5 attempts. A Redis or email outage longer than about 10 seconds leaves those rows undelivered, and nothing retries them. Resetting `attempts` by hand is the only fix today.
-- ⚠️ **An event can be sent twice.** If the relay sends a row and then fails to mark it delivered, the next poll sends it again. The copy gets a new Redis message id, so analytics cannot drop it as a duplicate.
-- ⚠️ **Deleting does not clean up files.** Deletes in work are hard deletes. Work never tells attachments. Files of deleted comments stay in MinIO. Work does send `comment.deleted`, but the event carries only the comment id, not the file ids. So attachments could not act on it, even if it listened.
-- ⚠️ **Core is in the path of every request.** One slow or dead core slows or stops work.
 
 ## Key code
 

@@ -71,13 +71,12 @@ One route does the work: `POST /email/send/`.
 Email has **no queue and no retry**. The caller decides what to do:
 
 - **auth** turns the error into its own `502`.
-- **work** retries the invitation up to 5 times (see [devboard-work](../work/index.md), "Events and the outbox").
+- **work** retries the invitation with a growing delay, up to 150 attempts (see [devboard-work](../work/index.md), "Events and the outbox").
 
 ## Known gaps
 
-- ⚠️ **No retry inside email.** If SMTP is down, the mail is lost unless the caller retries. Only work does.
-- ⚠️ **`APP_URL` is required but missing from `.env.example`.** You must add it yourself.
-- ⚠️ **No notification mails yet.** Nothing calls email for ticket or comment events. `devboard-integrations` stores an `email_notifications` setting, but nothing uses it.
+- ⚠️ **No retry inside email.** If SMTP is down, the mail is lost unless the caller retries — and no caller does. Considered adding a retry inside this service, but declined: callers wait on this synchronously, so a retry here means a slower request for the person clicking "Register," not a faster recovery.
+- ⚠️ **No notification mails yet.** Nothing calls email for ticket or comment events. `devboard-integrations` decided not to build this and removed the unused `email_notifications` setting rather than leaving a dead toggle.
 
 ## Key code
 

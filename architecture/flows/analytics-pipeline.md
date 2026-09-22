@@ -35,17 +35,18 @@ sequenceDiagram
 
 ## The write half
 
-1. **Read.** The worker (`python -m app.consumer.worker`) reads the stream as group `devboard-analytics-group`. First it takes back messages that were idle for 30 seconds. Then it reads new ones (up to 10, wait up to 5 seconds).
+0. **Check MongoDB first.** Before doing anything else, the worker pings MongoDB. If it's unreachable, it skips this whole loop and waits — nothing is reclaimed or read while Mongo is down, so a healthy message doesn't lose delivery attempts to an outage.
+1. **Read.** The worker (`python -m app.consumer.worker`) reads the stream as group `devboard-analytics-group`. First it takes back messages that were idle for 30 seconds (up to 5000 at a time). Then it reads new ones (up to 10, wait up to 5 seconds).
 2. **Ignore list.** `comment.mentioned` is acked and skipped. It is a notification, not activity.
 3. **Too many tries.** If a message was delivered more than 3 times, it goes to `failed_events` with its raw data, and is acked.
 4. **Translate.** `translate_event` turns the published event into one `ActivityEvent`. The saved name is not always the published name. For example, `ticket.status_changed` becomes `ticket.updated` with `metadata.field = "status"`. That way all field changes have one shape.
 5. **Check.** Each action must have its own metadata shape. A bad event, or an **unknown** event, goes to `failed_events` and is acked. New event types must be added on purpose.
-6. **Set id and time.** `_id` is the Redis message id. `created_at` is the time **inside** the message id, not "now".
-7. **Insert and ack.** A duplicate `_id` is ignored.
+6. **Set id and time.** `_id` is the outbox row id if the publisher sent one, else the Redis message id. `created_at` is the time **inside** the message id, not "now".
+7. **Insert, bump the cache version for that project, and ack.** A duplicate `_id` is ignored.
 
 Why it is safe to restart or replay:
 
-- Same message twice: the second insert is ignored (same `_id`).
+- Same message twice: the second insert is ignored (same `_id`) — this holds even across a redelivery with a new Redis message id, as long as the same `outbox_id` comes through.
 - A new consumer group reads the whole stream from the start. If you drop the MongoDB data, the log comes back from Redis.
 - Times stay true, because they come from the message id.
 
@@ -63,9 +64,9 @@ Why it is safe to restart or replay:
 
 1. The API checks the JWT signature. It does not ask core if the user is active.
 2. It asks **work** for the caller's project role. Analytics has no user or membership data. For burndown it first finds the sprint's project in its own log.
-3. It loads the project's events from MongoDB.
-4. It **replays** them in memory (`build_ticket_states`) to rebuild each ticket: its points, status and sprint over time.
-5. It computes the report from those states and returns it. **Nothing is cached.**
+3. It checks Redis for a cached report under this project's (or sprint's, for burndown) current version. If found, it returns that immediately — steps 4 and 5 don't run.
+4. Otherwise, it loads the project's events from MongoDB and **replays** them in memory (`build_ticket_states`) to rebuild each ticket: its points, status and sprint over time.
+5. It computes the report, caches it under the current version, and returns it. The cache is invalidated the moment the worker saves a new event for that project — not on a timer.
 
 ## Try it with fake data
 
@@ -79,7 +80,7 @@ The stack must be running. From the `devboard-analytics` folder:
 | Step | What happens |
 |---|---|
 | Worker stopped | Events wait in the stream. They are saved when it starts again. |
-| MongoDB is down | The worker fails and the messages stay pending. If a message passes 3 deliveries before MongoDB is back, it goes to `failed_events` instead of `events`. The raw data is kept. |
+| MongoDB is down | The worker pauses (checks Mongo's health before touching anything) instead of processing and failing. Reports fail unless a cached copy exists. Everything resumes automatically once Mongo answers again. |
 | Redis is down | The log stops growing. Reports still work. |
 | Read half, work is down | Every report route returns `503`. |
 | Read half, not a member | `403` |
@@ -87,10 +88,6 @@ The stack must be running. From the `devboard-analytics` folder:
 
 ## ⚠️ Known gaps
 
-- **Every report replays the whole project log.** Nothing is cached. Big projects will be slower.
-- **Duplicate events from work are not caught.** A resent outbox row gets a new Redis id, so it is stored twice. See [Events and notifications](events-and-notifications.md).
-- **One worker only.** The consumer name is fixed (`devboard-analytics-1`).
-- **Events lost to a long MongoDB outage end up in `failed_events`**, and nothing replays them.
 - **Some events are never logged.** Creating a team, a project or a member sends no event, so it is not in the log.
 
 ## Key code

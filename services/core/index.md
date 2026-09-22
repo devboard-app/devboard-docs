@@ -42,7 +42,7 @@ For a Bearer token, core does three things:
 
 1. Checks the JWT signature with `JWT_SECRET`.
 2. Loads the profile from its own database. No profile, or status not `active`, means the request is refused.
-3. Updates `last_active`. This is one database write on every request.
+3. Updates `last_active`, but only when the stored value is more than 5 minutes old — not a database write on every single request.
 
 ## What it does
 
@@ -64,9 +64,7 @@ For a Bearer token, core does three things:
 
 ## Known gaps
 
-- ⚠️ **Role and status live in two places** (auth and core). They are changed by two separate calls, not one transaction. If core fails to save after auth said yes, the two disagree.
-- ⚠️ **Every authenticated request writes to the database** (`last_active`).
-- ⚠️ **Work depends on core for every request.** Work asks core for the user status each time. If core is down, work is down too. See [devboard-work](../work/index.md).
+- ⚠️ **Role and status live in two places** (auth and core). They are changed by two separate calls, not one transaction. If core fails to save after auth said yes, the caller now gets a clear "could not save, please retry" error instead of a generic one — the sync to auth is safe to repeat, so retrying fixes it — but the two-call gap itself is unchanged.
 
 ## Key code
 

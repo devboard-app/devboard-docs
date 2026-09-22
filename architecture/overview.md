@@ -59,7 +59,7 @@ flowchart LR
     email["email"]
 
     web -->|"login, sign-up, refresh"| auth
-    auth -->|"sync new user"| core
+    auth -->|"sync user on email verification"| core
     core -->|"set role / status"| auth
     auth -->|"verify and reset mail"| email
 ```
@@ -124,7 +124,7 @@ There are four ways:
 4. Each service checks the token itself with the shared `JWT_SECRET`. No call to auth is needed.
 5. When the access token expires, the client swaps the refresh token for a new pair.
 
-**Extra check:** the token alone is not enough. `devboard-core` checks that the user is still active in its own database. `devboard-work` asks `devboard-core` for the user status on every request.
+**Extra check:** the token alone is not enough. `devboard-core` checks that the user is still active in its own database. `devboard-work` asks `devboard-core` for the user status, caching the result in Redis for 60 seconds rather than calling on every single request.
 
 **Who decides what a user may do:** `devboard-work` owns team roles and project roles. `devboard-integrations` and `devboard-analytics` have no role data. They ask `devboard-work` each time.
 
@@ -134,11 +134,7 @@ More detail: [Auth and security](auth-and-security.md). The step-by-step walk is
 
 ## Honest notes
 
-- ⚠️ `devboard-integrations` stores an `email_notifications` setting, but **nothing sends those emails yet**.
-- ⚠️ **Do not run two copies of the same worker.** Today there is one integrations worker and one analytics worker. That is fine, because they have different names and different groups. But each worker has a fixed name in the code (`devboard-integrations-1`, `devboard-analytics-1`). If you started a second container of the **same** worker, both would use the same name. Redis could not tell them apart, they could take the same stuck message, and the retry count would be wrong. To scale up, give each container a unique name.
-- ⚠️ Analytics reports rebuild ticket state from the event log **on every request**. Nothing is cached, so big projects will be slower.
 - ⚠️ One shared `INTERNAL_API_KEY` means any service can call any internal endpoint.
-- ⚠️ `devboard-work` asks `devboard-core` about the user on every request. If core is down, work requests fail.
 
 ## Where to run it
 

@@ -26,7 +26,7 @@ flowchart LR
 
     web -->|"HTTP: register, login, refresh"| auth
     core -->|"X-Service-Key: set role / status"| auth
-    auth -->|"X-Service-Key: sync new user"| core
+    auth -->|"X-Service-Key: sync user on email verification"| core
     auth -->|"X-Service-Key: send mail"| email
     auth --> pg
     auth -->|"rate-limit counters"| redis
@@ -42,11 +42,11 @@ flowchart LR
 
 | Job | How it works |
 |---|---|
-| Sign up | Saves the user (role `member`), saves a verification token, tells core to create the profile, sends the "verify your email" mail. |
+| Sign up | Saves the user (role `member`), saves a verification token, sends the "verify your email" mail. Does not touch core. |
 | Log in | Checks email and password. The user must be **active** and **verified**. Returns an access token and a refresh token. |
 | Refresh | Swaps a refresh token for a new pair. The old refresh token is revoked. |
 | Log out | Revokes one refresh token, or all tokens of that user (`logout-all`). |
-| Verify email | The link from the mail. Token lives 1 day, works once. |
+| Verify email | The link from the mail. Token lives 1 day, works once. Tells core to create the profile **before** marking the user verified — core's sync is safe to call more than once, so if this fails, nothing is saved and clicking the same link again just retries it. |
 | Password reset | `forgot-password` sends a link. It always answers 200, so nobody can test which emails exist. `reset-password` sets the new password and logs the user out everywhere. Token lives 60 minutes. |
 | Change role / status | Internal only. Called by core. Deactivating a user also revokes all their refresh tokens. |
 
@@ -71,15 +71,14 @@ A good login clears its counters.
 
 | Down | What happens |
 |---|---|
-| **core**, during sign-up | `502`. The new user is deleted again (hard delete). |
-| **email**, during sign-up | `502`, but the user is **already saved** and synced to core. The user can ask for a new mail with `resend-verification`. |
+| **core**, during email verification | `502`. Nothing is saved — the verification link still works once core is back, or the user can request a new one with `resend-verification`. |
+| **email**, during sign-up | `502`, but the user is **already saved**. The user can ask for a new mail with `resend-verification`. |
 | **email**, during forgot-password | `502`. |
 | **Redis** | The four rate-limited routes return `503`. Auth does not run them without limits. |
 | **PostgreSQL** | Every route that needs the database fails. |
 
 ## Known gaps
 
-- ⚠️ **Sign-up is not one step.** Auth saves the user first, then calls core. If auth stops between the two, auth has a user that core does not know.
 - ⚠️ **A role change is not seen at once.** Core changes the role in auth, but tokens already issued keep the old role until they expire (up to 5 minutes).
 - ⚠️ **A deactivated user can still use some services for up to 5 minutes.** Refresh tokens are revoked at once. But an existing access token is only checked for its signature by `integrations`, `analytics` and `attachments`. Only `core` and `work` check the user status live.
 

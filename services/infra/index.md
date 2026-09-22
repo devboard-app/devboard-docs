@@ -56,7 +56,7 @@ The 4 worker containers are: `devboard-work-outbox-relay`, `devboard-integration
 | `redeploy.bat` | Menu. Rebuild one service (`1` to `8`) or all (`0`). Does **not** run migrations. |
 | `migrate.bat` | Menu. Run migrations for auth, core, work, integrations or attachments. |
 | `stop.bat` | Saves a Postgres backup to `backups/devboard_all.sql`, then stops everything. Data stays in the volumes. |
-| `reset-db.bat` | **Deletes all data** and rebuilds. Backs up Postgres and MongoDB first. You must type `DESTROY`. |
+| `reset-db.bat` | **Deletes all data** and rebuilds. Backs up Postgres, MongoDB and the MinIO bucket first. You must type `DESTROY`. |
 
 ## How the databases are made
 
@@ -77,11 +77,10 @@ It runs **only when the Postgres volume is empty**. Each password must match the
 ## Known gaps
 
 - ⚠️ **One Postgres for five services.** It is one point of failure. Each service has its own database and user, but they share the server.
-- ⚠️ **MinIO is not backed up.** `reset-db.bat` deletes every uploaded file.
 - ⚠️ **No start order (minor).** `stack.yml` has no `depends_on`, because that would break running a repo alone. The containers use `restart: unless-stopped`, so they restart until Postgres is ready. The only cost is noisy logs at start.
-- ⚠️ **Dev settings.** Database, Redis, MongoDB and MinIO ports are open on the host. MinIO uses root credentials.
+- ⚠️ **Dev settings.** App service ports (8001-8008) are open on the host. Database, Redis, MongoDB and MinIO ports are now bound to `127.0.0.1` only. MinIO still uses root credentials.
 - ⚠️ **Windows only.** The scripts are `.bat` files.
-- ⚠️ **`stack.yml` does not run migrations.** Run `migrate.bat` after it.
+- ⚠️ **`stack.yml` does not run migrations automatically.** This is now called out in the file's own header — run `migrate.bat` after `up`.
 
 ## Key files
 

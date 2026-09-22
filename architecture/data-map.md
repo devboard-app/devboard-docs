@@ -85,14 +85,13 @@ One container (`devboard-minio`). One bucket, `devboard-attachments` (set by `S3
 | PostgreSQL | Accounts, profiles, all planning data, notifications | Only from a backup. `stop.bat` writes `backups/devboard_all.sql`. |
 | MongoDB | The activity log and the reports | **Yes**, if the stream still exists: a new consumer group replays all events. |
 | Redis | The stream, the reader positions, rate limits, web sessions | Sessions and limits start again. Stream events are gone if the disk data is lost. |
-| MinIO | All uploaded files | **No.** MinIO is not backed up. |
+| MinIO | All uploaded files | **Yes**, on `reset-db.bat`. |
 
-`reset-db.bat` deletes all four. It backs up Postgres and MongoDB first, and **not** MinIO.
+`reset-db.bat` deletes all four. It backs up Postgres, MongoDB and MinIO first — restore Postgres and the MinIO bucket together, since `attachments_db` rows point at files by key.
 
 ## ⚠️ Known gaps
 
 - **One Postgres for five services.** One point of failure.
-- **MinIO has no backup.**
 - **Redis does several jobs in one instance.** A reset or a full Redis loses sessions, limits and the stream together.
 - **Nothing trims the stream, the outbox or the `failed_events` tables.** They only grow. See [Deletes and cleanup](flows/deletes-and-cleanup.md).
 - **Copied ids are not checked.** If a user is removed in one service, nothing removes the copies in the others.

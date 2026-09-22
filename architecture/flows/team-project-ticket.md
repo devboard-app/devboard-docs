@@ -84,14 +84,12 @@ Work checks the **team role** first, then the **project role**.
 |---|---|
 | Any step, core is down | `503`. Work cannot check the user. |
 | 2, core is down | `503`. The person is not added. |
-| 2, email is down | The person **is** added. The mail row waits in the outbox and is retried up to 5 times. |
+| 2, email is down | The person **is** added. The mail row waits in the outbox and retries with a growing delay, up to 150 attempts. |
 | 5 and 6, Redis is down | The ticket is saved. The events wait in the outbox. |
 | 7, rule broken | `409` (already an active sprint, no tickets, ticket already in a sprint) |
 
 ## ⚠️ Known gaps
 
-- **The outbox gives up after 5 attempts** (about 10 seconds). A longer Redis or email outage leaves rows stuck. See [devboard-work](../../services/work/index.md).
-- **Assigning a ticket to yourself still gives you a notification.** Work does not skip the actor.
 - **Creating a team, a project or a member puts nothing on the event stream.** (Adding a member only queues the invitation mail.) So analytics does not log those.
 
 ## Key code

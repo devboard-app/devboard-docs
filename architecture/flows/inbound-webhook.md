@@ -49,8 +49,8 @@ A team admin does this once, in the web app:
 5. **Find ticket keys.** For each commit, the pattern `\b([A-Z][A-Z0-9]{1,9}-\d+)\b` finds keys. It is not case sensitive. Keys are made upper case.
 6. **Ask work.** `GET /api/internal/projects/<project_id>/tickets/<key>/` with `X-Service-Key`. `404` means "no such ticket": skip it.
 7. **Record the link.** Integrations inserts `(repo, commit_sha, ticket_id)` in `linked_commits`. It has a **unique key**. GitHub sometimes sends the same webhook twice. The second one hits the key and is skipped.
-8. **Publish the event.** `XADD` to `devboard:events` with the ticket, the commit SHA, URL and message, and the repo. The actor is a **fixed system id** (all zeros), not the commit author, because anyone can fake `git commit --author`.
-9. **Answer GitHub** with `200 {"status": "ok"}`.
+8. **Publish the event.** `XADD` to `devboard:events` with the ticket, the commit SHA, URL and message, and the repo. The actor is a **fixed system id** (all zeros), not the commit author, because anyone can fake `git commit --author`. **If this fails, the `linked_commits` row from step 7 is deleted again**, so a GitHub redelivery finds no row and retries the link fresh instead of being skipped as a false duplicate.
+9. **Answer GitHub.** `200 {"status": "ok"}` if every commit linked successfully. If any commit's publish failed, `502` instead — GitHub redelivers on a non-2xx response.
 
 Analytics reads `ticket.commit_linked` and stores it. Integrations' own worker has no handler for it, so it drops it.
 
@@ -61,15 +61,12 @@ Analytics reads `ticket.commit_linked` and stores it. Integrations' own worker h
 | 2, wrong signature | `403`. Logged with the GitHub delivery id. |
 | 4, unknown repo | Ignored. `200`. |
 | 6, work is down | The lookup returns "not found". That commit is **skipped**. |
-| 8, Redis is down | The error is logged. The link is lost (see the gap). |
-| Any error while linking one commit | Logged. The other commits still run. **GitHub still gets `200`.** |
+| 8, Redis is down | The `linked_commits` row is undone and the webhook answers `502`, so GitHub redelivers the push. |
+| Any error while linking one commit | Logged. The other commits still run. The webhook answers `502` if any commit failed, so GitHub retries the whole push — already-linked commits are skipped again via the unique key, so this is safe to redeliver. |
 
 ## ⚠️ Known gaps
 
-- **A failed publish loses the link for good.** The row in `linked_commits` is saved **before** the publish. If the publish fails, GitHub may redeliver, but the second try sees the row and skips the commit.
-- **GitHub always gets `200`.** Errors while linking are swallowed, so GitHub never sees a failed delivery for them, and it will not redeliver.
-- **A skipped commit is not retried.** If work was down, that commit is never linked, unless someone redelivers by hand.
-- **The event is not sent through an outbox.** Unlike work, integrations writes straight to Redis.
+- **The event is not sent through an outbox.** Unlike work, integrations writes straight to Redis — the undo-and-502 approach leans on GitHub's own redelivery instead of building a local retry queue.
 - **One repo, one project.** `repo_links.github_repo` is unique across all teams.
 
 ## Key code

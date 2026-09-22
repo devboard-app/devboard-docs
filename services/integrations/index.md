@@ -57,17 +57,19 @@ The JWT check reads only the token signature. It does not ask core if the user i
 { "slack": { "sprint.started": true }, "discord": { "sprint.completed": true } }
 ```
 
-A message is sent **only if** the URL is set **and** the trigger is `true`. URLs are checked on save: `https` only. Slack host must be `hooks.slack.com`. Discord host must be `discord.com` or `discordapp.com`. This stops an admin from pointing a webhook at an internal service.
+A message is sent **only if** the URL is set **and** the trigger is `true`. URLs are checked on save: `https` only. Slack host must be `hooks.slack.com`. Discord host must be `discord.com` or `discordapp.com`. This stops an admin from pointing a webhook at an internal service. A failed send retries up to 3 times with a growing delay (2s, then 4s) for timeouts, connection errors and `5xx`; a `4xx` fails immediately, since retrying a rejected request won't fix it.
 
 **2. The event consumer.** The worker reads the stream `devboard:events` as group `devboard-integrations-group`. Analytics reads the same stream with its own group, so both see every message.
 
 | Event | Result |
 |---|---|
-| `ticket.assigned`, `ticket.status_changed`, `comment.created`, `comment.mentioned` | In-app notification for the `recipient_id` |
+| `ticket.assigned`, `ticket.status_changed` | In-app notification for the `recipient_id` — skipped if `recipient_id == actor_id` (you assigned it to yourself, or changed status on your own ticket) |
+| `comment.created`, `comment.mentioned` | In-app notification for the `recipient_id` |
 | `sprint.started`, `sprint.completed` | Slack and Discord message |
-| Anything else | Acked and dropped, on purpose (analytics handles those) |
+| Explicitly ignored events (`IGNORED_EVENTS`) | Acked and dropped, on purpose (analytics handles those) |
+| Anything else unmatched | Logged as an **error**, then acked. A typo in an event name (or a new event nobody wired up yet) is no longer silent. |
 
-Each loop: reclaim messages idle for 60 seconds, then read new ones (up to 10, wait up to 5 seconds). If a handler raises, the message is **not** acked. It comes back on the next reclaim. After **3 tries** it goes to `failed_events` and is acked.
+Each loop: reclaim messages idle for 60 seconds, then read new ones (up to 10, wait up to 5 seconds). If a handler raises, the message is **not** acked. It comes back on the next reclaim. After **3 tries** it goes to `failed_events` and is acked. The consumer name comes from `CONSUMER_NAME` (falling back to the container hostname), so it's now safe to run more than one worker replica.
 
 **3. GitHub commit links.** On `push`:
 
@@ -75,8 +77,8 @@ Each loop: reclaim messages idle for 60 seconds, then read new ones (up to 10, w
 2. Find the repo in `repo_links`. Unknown repo: ignore.
 3. Find ticket keys in each commit message (pattern like `DEV-12`).
 4. Ask work if the ticket exists in that project.
-5. Insert `(repo, commit_sha, ticket_id)` into `linked_commits`. A duplicate is skipped. This stops GitHub redeliveries.
-6. Publish `ticket.commit_linked` to the stream. The actor is a **fixed system id**, not the commit author. Anyone can fake a commit author.
+5. Insert `(repo, commit_sha, ticket_id)` into `linked_commits`. A duplicate is skipped — this is what makes a GitHub redelivery of an already-processed push harmless.
+6. Publish `ticket.commit_linked` to the stream. The actor is a **fixed system id**, not the commit author. Anyone can fake a commit author. If the publish fails, the `linked_commits` row is deleted again and the webhook answers `5xx` instead of `200`, so GitHub redelivers it — the deleted row means the redelivery is processed fresh instead of being skipped as a false duplicate.
 
 ## If something is down
 
@@ -89,12 +91,7 @@ Each loop: reclaim messages idle for 60 seconds, then read new ones (up to 10, w
 
 ## Known gaps
 
-- ⚠️ **Email notifications are not built.** `email_notifications` is stored, but nothing reads it. `EMAIL_SERVICE_URL` and `CORE_SERVICE_URL` are required but unused. Core also has no route that returns a user's email from a user id. So the worker could not look up the address yet.
-- ⚠️ **A failed publish loses the commit link.** The row in `linked_commits` is saved before the publish. If the publish fails, a GitHub redelivery is skipped as a duplicate.
-- ⚠️ **One worker only.** The consumer name is fixed (`devboard-integrations-1`). Two workers would break retry counting.
-- ⚠️ **A typo in an event name fails silently.** Unknown events are acked and dropped.
 - ⚠️ **One repo, one project.** `repo_links.github_repo` is unique across all teams.
-- ⚠️ **Slack and Discord messages are fire and forget.** No retry.
 
 ## Key code
 

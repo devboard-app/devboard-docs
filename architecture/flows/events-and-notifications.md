@@ -42,24 +42,26 @@ sequenceDiagram
 
 1. **A change and its event are saved together.** Work uses `write_with_outbox`. One database transaction saves the change and a row in `outbox_events`. If the transaction fails, neither exists.
 2. **The relay reads the outbox.** The container `devboard-work-outbox-relay` runs `python manage.py drain_outbox`. Every 2 seconds it reads up to 100 unsent rows, oldest first. Redis rows go before email rows.
-3. **The relay sends each row** with `XADD` to the stream `devboard:events`. Every value in the event is a string. On success it sets `delivered_at`.
+3. **The relay sends each row** with `XADD` to the stream `devboard:events`, including the outbox row's own id as `outbox_id`. Every value in the event is a string. On success it sets `delivered_at`.
 4. **Two consumer groups read the same stream.** Each group has its own position, so each sees **every** message.
 
 **What integrations does with an event:**
 
 | Event | Result |
 |---|---|
-| `ticket.assigned`, `ticket.status_changed`, `comment.created`, `comment.mentioned` | A row in `notifications` for the `recipient_id`. The status-change and comment events are skipped when there is no `recipient_id`. |
-| `sprint.started`, `sprint.completed` | A message to the team's Slack and Discord webhooks. Sent **only if** the URL is set **and** that trigger is `true` in `enabled_triggers`. |
-| Any other event | Acked and dropped, on purpose. |
+| `ticket.assigned`, `ticket.status_changed`, `comment.created`, `comment.mentioned` | A row in `notifications` for the `recipient_id`. The status-change and comment events are skipped when there is no `recipient_id`, and `ticket.assigned`/`ticket.status_changed` are also skipped when `recipient_id == actor_id` — you don't get notified about your own action. |
+| `sprint.started`, `sprint.completed` | A message to the team's Slack and Discord webhooks. Sent **only if** the URL is set **and** that trigger is `true` in `enabled_triggers`. Retried up to 3 times with a growing delay for timeouts, connection errors and `5xx`; a `4xx` isn't retried. |
+| An event in `IGNORED_EVENTS` (analytics-only) | Acked and dropped, on purpose. |
+| Any other unmatched event | Logged as an **error** and acked — a typo in an event name is no longer silent. |
 
 **What analytics does:** see [Analytics pipeline](analytics-pipeline.md).
 
-**How a reader handles a failure** (integrations and analytics work the same way):
+**How a reader handles a failure:**
 
 1. If a handler raises, the message is **not** acked. It stays *pending*.
-2. Every loop, the reader takes back messages that were idle too long (60 seconds in integrations, 30 in analytics).
+2. Every loop, the reader takes back messages that were idle too long (60 seconds in integrations, 30 in analytics — reclaiming up to 5000 at a time in analytics, matched to what `xautoclaim` can actually reclaim in one pass).
 3. After **3 deliveries** the message goes to the `failed_events` table or collection, with the raw data, and is acked.
+4. **Analytics only:** the worker checks MongoDB is reachable before reclaiming or reading anything each loop. While Mongo is down, nothing is processed and nothing's delivery count climbs — so a MongoDB outage doesn't burn through a healthy message's 3 attempts the way it used to.
 
 **Events that exist today:**
 
@@ -78,21 +80,18 @@ The request must not fail just because Redis is slow, and the event must not be 
 
 | Step | What happens |
 |---|---|
-| 3, Redis is down | The row stays unsent. The relay tries again on the next poll. |
-| 3, sending fails 5 times | The row is skipped for good. See the gap below. |
+| 3, Redis is down | The row stays unsent. The relay retries with a growing delay (4s, doubling up to a 300s cap) instead of failing fast. |
+| 3, sending still fails after 150 attempts | The row is left as failed (roughly half a day of retrying). See the gap below. |
 | Reader is stopped | Events wait in the stream. The reader catches up when it starts again. |
 | Redis restarts | The stream and the group positions survive, because Redis runs with `--appendonly yes`. |
-| Slack or Discord fails | Logged. **Not retried.** The message is lost. |
+| Slack or Discord fails | Retried up to 3 times (2s, then 4s) for timeouts, connection errors and `5xx`. A `4xx` isn't retried. Still lost if all retries are exhausted. |
 | Handler bug on one event | Retried 3 times, then saved in `failed_events`. Other events keep flowing. |
 
 ## ⚠️ Known gaps
 
-- **The outbox gives up fast.** 5 attempts, 2 seconds apart. A Redis outage longer than about 10 seconds strands those rows. Nothing retries them.
-- **An event can be sent twice.** If the relay sends a row and fails to mark it delivered, it sends it again with a new Redis id. Analytics dedupes by Redis id, so it cannot catch this.
 - **The stream is never trimmed.** `XADD` has no size limit. The stream grows for ever. (It also means a new group can replay the full history.)
 - **Delivered outbox rows are never deleted.** The table grows.
-- **One reader per group.** The consumer names are fixed. Two workers would break retry counting.
-- **A wrong event name is silent.** Integrations drops events it has no handler for. A typo in a handler key gives no error.
+- **Rows that exhaust all 150 attempts stay unsent.** Nothing retries them further; fixing requires resetting `attempts` by hand.
 
 ## Key code
 

@@ -32,10 +32,10 @@ More: [Auth and security](auth-and-security.md).
 | Decision | Why | Cost |
 |---|---|---|
 | **One Redis stream, one consumer group per reader** | Integrations and analytics each see every event. A new group can replay all of it | Nothing trims the stream |
-| **Work uses an outbox** | The change and its event are saved together. A Redis outage does not fail the request or lose the event | Events are late by about 2 seconds. Can be sent twice |
-| **Redis message id is the MongoDB `_id`, and `created_at` comes from it** | Redelivery is harmless. The log can be rebuilt with true times | Duplicates from the outbox get a new id |
+| **Work uses an outbox** | The change and its event are saved together. A Redis outage does not fail the request or lose the event | Events are late by about 2 seconds. Retries with backoff (up to 150 attempts) instead of giving up fast, so a longer outage is now survivable |
+| **The outbox row's own id (`outbox_id`) is sent with the event, and used as the MongoDB `_id` when present** | Redelivery is harmless even though it gets a new Redis message id — the outbox id stays the same, so analytics can still dedupe it | Readers that don't check for `outbox_id` and fall back to the Redis message id still dedupe worse |
 | **Analytics renames some events** (`ticket.status_changed` is stored as `ticket.updated`) | One shape for all field changes. Reports are simpler | Queries filter on a field, not a bare action |
-| **Reports replay the event log** | No change to the event format in three repos. No calls back to work | Slow on big projects. Nothing is cached |
+| **Reports replay the event log** | No change to the event format in three repos. No calls back to work | Slow on big projects — mitigated by caching the result per project (Redis, invalidated the moment a new event lands, not on a timer). The first request after a change still pays the full replay cost |
 
 More: [Events and notifications](flows/events-and-notifications.md), [Analytics pipeline](flows/analytics-pipeline.md).
 

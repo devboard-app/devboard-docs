@@ -49,24 +49,27 @@ Report routes need a JWT. Analytics has no user data, so it asks **work** for th
 | `GET /reports/projects/{id}/velocity/` | Project **leads** |
 | `GET /reports/projects/{id}/cycle-time/` | Project **leads** |
 | `GET /reports/sprints/{id}/burndown/` | Project **leads** (analytics finds the sprint's project first) |
-| `POST /events/` | Other services, with `X-Service-Key`. Kept for backfill. Nothing calls it today. |
+| `POST /events/` | Other services, with `X-Service-Key`. Kept intentionally for a future manual backfill tool — nothing calls it today, but it's not dead code either. |
 
 The JWT check reads only the signature. It does not ask core if the user is active.
+
+**Velocity, cycle-time and burndown are cached** in Redis, keyed by project (burndown by sprint) and a version number. The worker bumps that version every time it saves a new event for that project, which makes any report cached under the old version unreachable — so a report is instant right up until something in that project actually changes, and never stale after.
 
 ## How events get saved
 
 The worker loop (one message at a time):
 
-1. Reclaim messages idle for 30 seconds. Read new ones (up to 10, wait up to 5 seconds).
+0. Check MongoDB is reachable (`ping`). If not, skip everything below and wait — nothing is reclaimed or read while Mongo is down, so a healthy message doesn't burn through its delivery attempts just because Mongo happened to be briefly unreachable.
+1. Reclaim messages idle for 30 seconds (up to 5000 at a time, matched to how many `xautoclaim` can reclaim in one pass). Read new ones (up to 10, wait up to 5 seconds).
 2. If the event type is on the ignore list (`comment.mentioned`), ack and skip.
 3. If the message was delivered more than 3 times, save it in `failed_events` and ack.
 4. **Translate** the event into one clean `ActivityEvent`. A bad or unknown event goes to `failed_events` and is acked.
-5. Set `_id` = the Redis message id. Set `created_at` = the time inside the Redis message id.
-6. Insert into `events`. Ack.
+5. Set `_id` = the outbox row id if the publisher sent one, else the Redis message id. Set `created_at` = the time inside the Redis message id.
+6. Insert into `events`. Bump that project's report-cache version (see "Reports" below). Ack.
 
 Why this is safe:
 
-- **Same event twice is fine.** The Redis id is the MongoDB `_id`. A second insert is ignored.
+- **Same event twice is fine.** The id (outbox id, or the Redis message id if there isn't one) is the MongoDB `_id`. A second insert is ignored — this holds even across a redelivery with a new Redis message id, as long as the same outbox id comes through.
 - **The log can be rebuilt.** A new consumer group reads the stream from the start. Drop the Mongo data, restart, and the log comes back from Redis.
 - **Times stay true.** `created_at` comes from the message id, not from "now". A rebuild does not change history.
 
@@ -91,16 +94,12 @@ Reports rebuild the state of every ticket by **replaying the event log** in memo
 | Down | What happens |
 |---|---|
 | **work** | Every report route returns `503`, because the role check fails. |
-| **MongoDB** | Reports fail. The worker keeps failing and the messages stay pending. After 3 deliveries, a message goes to `failed_events` when MongoDB is back. Its raw data is kept. |
+| **MongoDB** | Reports fail (unless a cached copy exists — those still serve). The worker pauses entirely — it checks Mongo's health before reclaiming or reading anything, so a message doesn't lose delivery attempts just because Mongo was briefly down. It resumes automatically once Mongo answers again. |
 | **Redis** | The worker cannot read. Reports still work, but the log stops growing. |
 | **The worker is stopped** | Events wait in the stream. They are saved when the worker starts again. |
 
 ## Known gaps
 
-- ⚠️ **Reports are slow on big projects.** Each request replays the whole log for that project. Nothing is cached.
-- ⚠️ **One worker only.** The consumer name is fixed (`devboard-analytics-1`). Two workers would break retries.
-- ⚠️ **Duplicate events from work are not caught.** Work can send an event twice (see [devboard-work](../work/index.md)). The copy has a new Redis id, so it is saved twice.
-- ⚠️ **`POST /events/` has no caller.** It is open to anyone with the service key. Delete it if backfill is not needed. Its key check uses `!=`, not a constant-time compare like auth does.
 - ⚠️ **`get_recent_events` has no route.** The function exists but nothing calls it.
 
 ## Key code

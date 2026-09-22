@@ -81,12 +81,11 @@ The container `devboard-attachments-cleanup` runs `python -m app.cleanup` every 
 
 ## Known gaps
 
-- ⚠️ **Files of deleted comments stay forever.** Cleanup removes only `pending` rows. Nothing tells attachments when work deletes a comment. (The `comment.deleted` event has no file ids.)
 - ⚠️ **The `context_type` / `context_id` columns are never used to search.** Work keeps the file ids on the comment. The link is stored in work, not here.
 - ⚠️ **The per-context limit can be skipped.** It counts only `stored` files, so many uploads requested before any confirm all pass.
 - ⚠️ **The ownership check is optional.** `owner_id` on the batch route is not required. Work sends it when creating a comment, but not when reading.
 - ⚠️ **No list route.** A lost attachment id cannot be found again.
-- ⚠️ **Dev storage only.** MinIO uses root credentials. No bucket policy. No backup.
+- ⚠️ **Dev storage only.** MinIO uses root credentials, and there is no bucket policy. `reset-db.bat` now backs up the bucket before wiping it, so that part is no longer a gap — the shared credentials are.
 
 ## Key code
 

@@ -92,7 +92,6 @@ The content check looks inside the file: images must open in Pillow, PDFs must s
 ## ⚠️ Known gaps
 
 - **The per-context limit can be skipped.** It counts only `stored` files. Many uploads requested before any confirm all pass.
-- **Files of deleted comments stay in MinIO.** Nothing deletes a `stored` file when its comment is deleted. The `comment.deleted` event has no file ids.
 - **Read links are not owner-checked.** Work sends `owner_id` when it creates a comment, but not when it reads. The ownership check happens once, at create.
 - **Dev setup only.** In development the public address is `localhost:9000`. In production the two addresses may become one.
 
