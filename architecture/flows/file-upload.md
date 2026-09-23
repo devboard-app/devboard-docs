@@ -44,7 +44,6 @@ sequenceDiagram
 2. Attachments checks the **claims**:
    - The content type is on the allow list: `image/png`, `image/jpeg`, `image/webp`, `image/gif`, `application/pdf`, `text/plain`.
    - The declared size is under `MAX_FILE_SIZE_MB` (5 by default).
-   - The context has fewer than `MAX_ATTACHMENTS_PER_CONTEXT` files (5 by default).
 3. It saves a row with status `pending` and the storage key `{id}/{filename}`, and signs a temporary **PUT** link. The link is signed for the **public** MinIO address, because the browser must be able to reach it.
 
 **2. Upload**
@@ -91,7 +90,6 @@ The content check looks inside the file: images must open in Pillow, PDFs must s
 
 ## ⚠️ Known gaps
 
-- **The per-context limit can be skipped.** It counts only `stored` files. Many uploads requested before any confirm all pass.
 - **Read links are not owner-checked.** Work sends `owner_id` when it creates a comment, but not when it reads. The ownership check happens once, at create.
 - **Dev setup only.** In development the public address is `localhost:9000`. In production the two addresses may become one.
 

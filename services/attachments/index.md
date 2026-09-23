@@ -49,7 +49,7 @@ flowchart LR
 
 The client's words in step 1 are only claims. Step 3 checks the real file.
 
-1. `POST /attachments/request-upload/` (JWT). Checks: file type is allowed, declared size is under `MAX_FILE_SIZE_MB`, the context has fewer than `MAX_ATTACHMENTS_PER_CONTEXT` files. Saves a row with status `pending`. Returns `attachment_id` and `upload_url`.
+1. `POST /attachments/request-upload/` (JWT). Checks: file type is allowed, declared size is under `MAX_FILE_SIZE_MB`, and the caller is under `MAX_ATTACHMENTS_PER_OWNER` (counts `stored` files plus recent `pending` ones, so unconfirmed uploads count too). Saves a row with status `pending`. Returns `attachment_id` and `upload_url`.
 2. The client sends `PUT` to `upload_url`. **This goes to MinIO. Attachments is not involved.**
 3. `POST /attachments/{id}/confirm/` (JWT). Attachments reads the real object from MinIO and checks it:
 
@@ -81,8 +81,6 @@ The container `devboard-attachments-cleanup` runs `python -m app.cleanup` every 
 
 ## Known gaps
 
-- ⚠️ **The `context_type` / `context_id` columns are never used to search.** Work keeps the file ids on the comment. The link is stored in work, not here.
-- ⚠️ **The per-context limit can be skipped.** It counts only `stored` files, so many uploads requested before any confirm all pass.
 - ⚠️ **The ownership check is optional.** `owner_id` on the batch route is not required. Work sends it when creating a comment, but not when reading.
 - ⚠️ **No list route.** A lost attachment id cannot be found again.
 - ⚠️ **Dev storage only.** MinIO uses root credentials, and there is no bucket policy. `reset-db.bat` now backs up the bucket before wiping it, so that part is no longer a gap — the shared credentials are.

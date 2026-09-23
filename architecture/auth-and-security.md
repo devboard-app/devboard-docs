@@ -86,8 +86,7 @@ A service that calls another one sends `X-Service-Key: <INTERNAL_API_KEY>`. The 
 
 | Receiver | Compare |
 |---|---|
-| auth, email, core, work, analytics | `hmac.compare_digest` (constant time) |
-| attachments | `!=` — the one receiver not yet fixed |
+| auth, email, core, work, analytics, attachments | `hmac.compare_digest` (constant time) |
 
 ## 3. Other protections
 
@@ -126,7 +125,6 @@ These are **names only**. Values are in each service's `.env` and are never in t
 ## ⚠️ Known gaps
 
 - **One shared key.** Any service can call any internal route. One hacked service can call all the others.
-- **The key check is not the same everywhere.** Attachments still uses `==`; every other service now uses `hmac.compare_digest`.
 - **One shared JWT secret (HS256).** Every service that can check a token can also make one. A hacked service could forge a token for any user.
 - **Internal routes are open to anyone who has the key and can reach the port.** App service ports (8001-8008) are still open on the host in dev. Shared infra ports (Postgres, Redis, Mongo, MinIO) are now bound to `127.0.0.1` only. Before going public, block `/internal/...` at a reverse proxy.
 - **Some checks are signature only.** integrations, analytics and attachments do not ask if the user is still active. A deactivated user has up to 5 minutes there.

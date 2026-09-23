@@ -46,7 +46,7 @@ More: [Events and notifications](flows/events-and-notifications.md), [Analytics 
 | **Presigned upload, straight to MinIO** | The bytes never pass through a service | The service must check the file afterwards |
 | **Confirm reads the real file** | The client's claims are not trusted. A zip named `cat.png` fails | One extra download per upload |
 | **Work keeps only file ids. Links are made when needed** | Links expire, so they are never stored | An extra call to attachments on each read |
-| **Attachments knows nothing about comments** (generic `context_type` and `context_id`) | The same service can serve tickets or avatars later | The columns are not used yet |
+| **Attachments knew nothing about comments** (generic `context_type` and `context_id`) | The same service could serve tickets or avatars later | Nothing ever set the columns — devboard-work always kept the file-to-comment link itself. Removed rather than left unused |
 | **Two S3 clients** (internal and public address) | A signed link is tied to its host name. The browser needs the public one | Two settings to keep right |
 
 More: [File upload](flows/file-upload.md), [devboard-attachments](../services/attachments/index.md).

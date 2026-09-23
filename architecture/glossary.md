@@ -59,7 +59,6 @@
 |---|---|
 | **Bucket** | The top-level folder in MinIO or S3. Ours is `devboard-attachments`. |
 | **Content type** | What kind of file it is, like `image/png`. |
-| **Context** | What a file belongs to: `context_type` and `context_id`. |
 | **MinIO** | The file storage. It speaks the same language as S3. |
 | **Object** | One stored file. |
 | **Pending / stored** | The two states of an upload. `pending` is not confirmed yet. `stored` is checked. |

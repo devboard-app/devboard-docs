@@ -16,8 +16,6 @@ Pages are short names: **overview**, **auth**, **core**, **email**, **work**, **
 
 | Problem | Where |
 |---|---|
-| The `context_type` and `context_id` columns are never used | [attachments](../services/attachments/index.md) |
-| The per-context file limit can be skipped | [attachments](../services/attachments/index.md), [file upload](flows/file-upload.md) |
 | The ownership check on file links is optional | [attachments](../services/attachments/index.md), [file upload](flows/file-upload.md) |
 | No route to list your own files | [attachments](../services/attachments/index.md) |
 | MinIO still uses root credentials for everything (no bucket policy or scoped key) | [attachments](../services/attachments/index.md), [data map](data-map.md), [infra](../services/infra/index.md) |
@@ -27,7 +25,6 @@ Pages are short names: **overview**, **auth**, **core**, **email**, **work**, **
 | Problem | Where |
 |---|---|
 | One shared `INTERNAL_API_KEY` for all services | [auth and security](auth-and-security.md), [overview](overview.md) |
-| The key is still compared with plain `==` in devboard-attachments (every other service now uses `hmac.compare_digest`) | [auth and security](auth-and-security.md) |
 | One shared HS256 secret: any service could forge a token | [auth and security](auth-and-security.md) |
 | Internal routes are reachable if you have the key and the port | [auth and security](auth-and-security.md) |
 | A deactivated user has up to 5 minutes in some services | [auth](../services/auth/index.md), [login flow](flows/login-and-refresh.md), [auth and security](auth-and-security.md) |
